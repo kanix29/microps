@@ -1,38 +1,17 @@
-APPS = 
+APPS = step1
 
-DRIVERS = 
+# CFLAGS := $(CFLAGS) -g -W -Wall -Wno-unused-parameter -iquote .
 
-OBJS = util.o \
+.PHONY: all test clean
 
-TESTS = test/step0.exe \
+all: build
 
-CFLAGS := $(CFLAGS) -g -W -Wall -Wno-unused-parameter -iquote .
+build:
+	mkdir -p bin
+	go build -o ./bin/$(APPS) .
 
-ifeq ($(shell uname),Linux)
-  # Linux specific settings
-  BASE = platform/linux
-  CFLAGS := $(CFLAGS) -pthread -iquote $(BASE)
-endif
-
-ifeq ($(shell uname),Darwin)
-  # macOS specific settings
-endif
-
-.SUFFIXES:
-.SUFFIXES: .c .o
-
-.PHONY: all clean
-
-all: $(APPS) $(TESTS)
-
-$(APPS): %.exe : %.o $(OBJS) $(DRIVERS)
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
-
-$(TESTS): %.exe : %.o $(OBJS) $(DRIVERS) test/test.h
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
-
-.c.o:
-	$(CC) $(CFLAGS) -c $< -o $@
+test:
+	./bin/$(APPS)
 
 clean:
-	rm -rf $(APPS) $(APPS:.exe=.o) $(OBJS) $(DRIVERS) $(TESTS) $(TESTS:.exe=.o)
+	rm -rf ./bin/*
