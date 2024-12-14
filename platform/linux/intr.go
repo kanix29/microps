@@ -102,11 +102,13 @@ func IntrThread() {
 
 	for !terminate {
 		sig := <-sigChan
+		util.Logger.Debug("Signal received", zap.String("signal", sig.String()))
 		switch sig {
 		case syscall.SIGHUP, syscall.SIGINT:
 			terminate = true
 		default:
 			for entry := irqs; entry != nil; entry = entry.Next {
+				util.Logger.Debug("Checking IRQ", zap.Uint("irq", entry.IRQ), zap.String("name", entry.Name), zap.Uint("signal", uint(sig.(syscall.Signal))))
 				if entry.IRQ == uint(sig.(syscall.Signal)) {
 					util.Logger.Debug("IRQ received",
 						zap.Uint("irq", entry.IRQ),
@@ -124,5 +126,6 @@ func IntrRaiseIRQ(irq uint) error {
 	if tid == nil {
 		return fmt.Errorf("thread not created")
 	}
+	util.Logger.Debug("IntrRaiseIRQ called", zap.Uint("irq", irq))
 	return syscall.Kill(syscall.Getpid(), syscall.Signal(irq))
 }

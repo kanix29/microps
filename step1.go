@@ -6,9 +6,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/kanix29/microps/consts"
 	"github.com/kanix29/microps/driver"
 	"github.com/kanix29/microps/service"
-	"github.com/kanix29/microps/test"
 	"github.com/kanix29/microps/util"
 	"go.uber.org/zap"
 )
@@ -26,6 +26,7 @@ func main() {
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGHUP)
 	go func() {
 		for sig := range sigChan {
+			util.Logger.Debug("Signal received in main", zap.String("signal", sig.String()))
 			onSignal(sig)
 		}
 	}()
@@ -51,7 +52,8 @@ func main() {
 
 	// Main loop
 	for !terminate {
-		if err := service.NetDeviceOutput(dev, 0x0800, test.TestData, nil); err != nil {
+		util.Logger.Debug("Sending data")
+		if err := service.NetDeviceOutput(dev, 0x0800, consts.TestData, nil); err != nil {
 			util.Logger.Error("NetDeviceOutput() failure", zap.Error(err))
 			break
 		}
