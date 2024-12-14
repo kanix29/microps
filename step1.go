@@ -8,6 +8,7 @@ import (
 
 	"github.com/kanix29/microps/driver"
 	"github.com/kanix29/microps/service"
+	"github.com/kanix29/microps/test"
 	"github.com/kanix29/microps/util"
 	"go.uber.org/zap"
 )
@@ -49,9 +50,8 @@ func main() {
 	}
 
 	// Main loop
-	testData := []byte{ /* test data */ }
 	for !terminate {
-		if err := service.NetDeviceOutput(dev, 0x0800, testData, nil); err != nil {
+		if err := service.NetDeviceOutput(dev, 0x0800, test.TestData, nil); err != nil {
 			util.Logger.Error("NetDeviceOutput() failure", zap.Error(err))
 			break
 		}
