@@ -5,7 +5,9 @@ import (
 	"sync"
 
 	"github.com/kanix29/microps/model"
+	platform "github.com/kanix29/microps/platform/linux"
 	"github.com/kanix29/microps/util"
+	"go.uber.org/zap"
 )
 
 func NET_DEVICE_IS_UP(dev *model.NetDevice) bool {
@@ -43,7 +45,7 @@ func NetDeviceRegister(dev *model.NetDevice) error {
 	dev.Next = devices
 	devices = dev
 
-	fmt.Printf("Registered: dev=%s, type=0x%04x\n", dev.Name, dev.Type)
+	util.Logger.Debug("NetDeviceRegister", zap.String("dev", dev.Name), zap.String("type", fmt.Sprintf("0x%04x", dev.Type)))
 	deviceIndex++
 
 	return nil
@@ -59,7 +61,7 @@ func NetDeviceOpen(dev *model.NetDevice) error {
 		}
 	}
 	dev.Flags |= model.NET_DEVICE_FLAG_UP
-	fmt.Printf("dev=%s, state=%s\n", dev.Name, NET_DEVICE_STATE(dev))
+	util.Logger.Debug("NetDeviceOpen", zap.String("dev", dev.Name), zap.String("state", NET_DEVICE_STATE(dev)))
 	return nil
 }
 
@@ -73,7 +75,7 @@ func NetDeviceClose(dev *model.NetDevice) error {
 		}
 	}
 	dev.Flags &^= model.NET_DEVICE_FLAG_UP
-	fmt.Printf("dev=%s, state=%s\n", dev.Name, NET_DEVICE_STATE(dev))
+	util.Logger.Debug("NetDeviceClose", zap.String("dev", dev.Name), zap.String("state", NET_DEVICE_STATE(dev)))
 	return nil
 }
 
@@ -90,7 +92,7 @@ func NetDeviceOutput(dev *model.NetDevice, typ uint16, data []byte, dst interfac
 	}
 
 	// Use HexDump function to print the data in a debug format
-	fmt.Printf("dev=%s, type=0x%04x, len=%d\n", dev.Name, typ, len(data))
+	util.Logger.Debug("NetDeviceOutput", zap.String("dev", dev.Name), zap.String("type", fmt.Sprintf("0x%04x", typ)), zap.Int("len", len(data)))
 	util.HexDump(data)
 
 	if err := dev.Ops.Transmit(dev, typ, data, dst); err != nil {
@@ -100,33 +102,40 @@ func NetDeviceOutput(dev *model.NetDevice, typ uint16, data []byte, dst interfac
 }
 
 func NetInputHandler(typ uint16, data []byte, dev *model.NetDevice) error {
-	fmt.Printf("dev=%s, type=0x%04x, len=%d\n", dev.Name, typ, len(data))
+	util.Logger.Debug("NetInputHandler", zap.String("dev", dev.Name), zap.String("type", fmt.Sprintf("0x%04x", typ)), zap.Int("len", len(data)))
 	util.HexDump(data)
 	return nil
 }
 
 func NetRun() error {
-	fmt.Println("open all devices...")
+	if err := platform.IntrRun(); err != nil {
+		return fmt.Errorf("intr_run() failure")
+	}
+	util.Logger.Info("NetRun: opened all devices...")
 	for dev := devices; dev != nil; dev = dev.Next {
 		if err := NetDeviceOpen(dev); err != nil {
 			return err
 		}
 	}
-	fmt.Println("running...")
+	util.Logger.Info("NetRun: running...")
 	return nil
 }
 
 func NetShutdown() {
-	fmt.Println("close all devices...")
+	util.Logger.Info("NetShutdown: closing all devices...")
 	for dev := devices; dev != nil; dev = dev.Next {
 		if err := NetDeviceClose(dev); err != nil {
-			fmt.Printf("error closing device: %v\n", err)
+			util.Logger.Error("NetShutdown: error closing device", zap.Error(err))
 		}
 	}
-	fmt.Println("shutting down")
+	platform.IntrShutdown()
+	util.Logger.Info("NetShutdown: shutting down")
 }
 
 func NetInit() error {
-	fmt.Println("initialized")
+	if err := platform.IntrInit(); err != nil {
+		return fmt.Errorf("intr_init() failure")
+	}
+	util.Logger.Info("NetInit: initialized")
 	return nil
 }

@@ -45,3 +45,12 @@ type NetDeviceOps struct {
 	Close    func(dev *NetDevice) error
 	Transmit func(dev *NetDevice, t uint16, data []byte, dst interface{}) error
 }
+
+type IRQEntry struct {
+	Next    *IRQEntry
+	IRQ     uint
+	Handler func(irq uint, dev interface{}) error
+	Flags   int
+	Name    string
+	Dev     interface{}
+}
