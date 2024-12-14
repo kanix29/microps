@@ -4,10 +4,6 @@ import (
 	"testing"
 )
 
-func TestLprintf(t *testing.T) {
-	Lprintf('I', "util_test.go", 10, "TestLprintf", "This is a test message: %d", 123)
-}
-
 func TestHexDump(t *testing.T) {
 	data := []byte("This is a test for hex dump function.")
 	HexDump(data)

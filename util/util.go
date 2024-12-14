@@ -4,20 +4,33 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
-	"time"
 	"unsafe"
+
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 /*
  * Logging
  */
 
-func Lprintf(level byte, file string, line int, function string, format string, a ...interface{}) (n int, err error) {
-	now := time.Now()
-	timestamp := now.Format("15:04:05.000")
-	msg := fmt.Sprintf(format, a...)
-	n, err = fmt.Fprintf(os.Stderr, "%s [%c] %s: %s (%s:%d)\n", timestamp, level, function, msg, file, line)
-	return
+var Logger *zap.Logger
+
+func InitLogger() {
+	config := zap.Config{
+		Level:            zap.NewAtomicLevelAt(zapcore.DebugLevel),
+		Development:      true,
+		Encoding:         "json",
+		EncoderConfig:    zap.NewDevelopmentEncoderConfig(),
+		OutputPaths:      []string{"stdout"},
+		ErrorOutputPaths: []string{"stderr"},
+	}
+	var err error
+	Logger, err = config.Build()
+	if err != nil {
+		panic(fmt.Sprintf("Failed to initialize logger: %v", err))
+	}
+	defer Logger.Sync() // flushes buffer, if any
 }
 
 func HexDump(data []byte) {

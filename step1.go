@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -9,6 +8,8 @@ import (
 
 	"github.com/kanix29/microps/driver"
 	"github.com/kanix29/microps/service"
+	"github.com/kanix29/microps/util"
+	"go.uber.org/zap"
 )
 
 var terminate = false
@@ -18,9 +19,10 @@ func onSignal(sig os.Signal) {
 }
 
 func main() {
+	util.InitLogger()
 	// Set up signal handling
 	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGHUP)
 	go func() {
 		for sig := range sigChan {
 			onSignal(sig)
@@ -29,20 +31,20 @@ func main() {
 
 	// Initialize network
 	if err := service.NetInit(); err != nil {
-		fmt.Printf("net_init() failure: %v\n", err)
+		util.Logger.Error("NetInit() failure", zap.Error(err))
 		return
 	}
 
 	// Initialize dummy device
 	dev, err := driver.DummyInit()
 	if err != nil {
-		fmt.Printf("dummy_init() failure: %v\n", err)
+		util.Logger.Error("DummyInit() failure", zap.Error(err))
 		return
 	}
 
 	// Run network
 	if err := service.NetRun(); err != nil {
-		fmt.Printf("net_run() failure: %v\n", err)
+		util.Logger.Error("NetRun() failure", zap.Error(err))
 		return
 	}
 
@@ -50,7 +52,7 @@ func main() {
 	testData := []byte{ /* test data */ }
 	for !terminate {
 		if err := service.NetDeviceOutput(dev, 0x0800, testData, nil); err != nil {
-			fmt.Printf("net_device_output() failure: %v\n", err)
+			util.Logger.Error("NetDeviceOutput() failure", zap.Error(err))
 			break
 		}
 		time.Sleep(1 * time.Second)
