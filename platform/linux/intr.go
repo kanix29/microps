@@ -18,7 +18,7 @@ var (
 	sigmask = make(map[uint]os.Signal)
 	mu      sync.Mutex
 	tid     *sync.WaitGroup
-	barrier = make(chan struct{})
+	barrier = sync.WaitGroup{}
 )
 
 const (
@@ -53,13 +53,14 @@ func IntrRequestIRQ(irq uint, handler func(irq uint, dev interface{}) error, fla
 
 	return nil
 }
+
 func IntrRun() error {
 	sigmask[uint(syscall.SIGHUP)] = syscall.SIGHUP
 	sigmask[uint(syscall.SIGINT)] = syscall.SIGINT
 
 	// Block signals
 	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGHUP, syscall.SIGINT)
+	signal.Notify(sigChan, syscall.SIGHUP, syscall.SIGINT, syscall.Signal(INTR_IRQ_BASE))
 	go func() {
 		for range sigChan {
 			// Handle signals if necessary
@@ -67,6 +68,7 @@ func IntrRun() error {
 	}()
 
 	// Create and start the thread
+	tid = &sync.WaitGroup{}
 	tid.Add(1)
 	go func() {
 		defer tid.Done()
@@ -74,10 +76,12 @@ func IntrRun() error {
 	}()
 
 	// Wait for the barrier
-	<-barrier
+	barrier.Add(1)
+	barrier.Wait()
 
 	return nil
 }
+
 func IntrShutdown() {
 	if tid == nil {
 		// Thread not created
@@ -96,21 +100,18 @@ func IntrInit() error {
 func IntrThread() {
 	terminate := false
 	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGHUP, syscall.SIGINT)
+	signal.Notify(sigChan, syscall.SIGHUP, syscall.SIGINT, syscall.Signal(INTR_IRQ_BASE))
 
 	util.Logger.Info("start...")
-	barrier <- struct{}{}
+	barrier.Done()
 
 	for !terminate {
 		sig := <-sigChan
-		util.Logger.Debug("Signal received", zap.String("signal", sig.String()))
 		switch sig {
 		case syscall.SIGHUP, syscall.SIGINT:
 			terminate = true
 		default:
-			util.Logger.Debug("Checking IRQs")
 			for entry := irqs; entry != nil; entry = entry.Next {
-				util.Logger.Debug("Checking IRQ", zap.Uint("irq", entry.IRQ), zap.String("name", entry.Name), zap.Uint("signal", uint(sig.(syscall.Signal))))
 				if entry.IRQ == uint(sig.(syscall.Signal)) {
 					util.Logger.Debug("IRQ received",
 						zap.Uint("irq", entry.IRQ),
@@ -128,6 +129,5 @@ func IntrRaiseIRQ(irq uint) error {
 	if tid == nil {
 		return fmt.Errorf("thread not created")
 	}
-	util.Logger.Debug("IntrRaiseIRQ called", zap.Uint("irq", irq))
 	return syscall.Kill(syscall.Getpid(), syscall.Signal(irq))
 }
