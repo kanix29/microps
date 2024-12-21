@@ -13,17 +13,25 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	INTR_IRQ_SHARED = 1      // Define this constant as per your requirement
+	INTR_IRQ_BASE   = 34 + 1 // SIGRTMIN + 1
+)
+
 var (
 	irqs    *model.IRQEntry
 	sigmask = make(map[uint]os.Signal)
 	mu      sync.Mutex
 	tid     *sync.WaitGroup
 	barrier = sync.WaitGroup{}
-)
-
-const (
-	INTR_IRQ_SHARED = 1      // Define this constant as per your requirement
-	INTR_IRQ_BASE   = 34 + 1 // SIGRTMIN + 1
+	signals = func() []os.Signal {
+		s := make([]os.Signal, 0, 64-INTR_IRQ_BASE+1)
+		for i := INTR_IRQ_BASE; i <= 64; i++ { // SIGRTMIN to SIGRTMAX
+			s = append(s, syscall.Signal(i))
+		}
+		s = append(s, syscall.SIGHUP, syscall.SIGINT)
+		return s
+	}()
 )
 
 func IntrRequestIRQ(irq uint, handler func(irq uint, dev interface{}) error, flags int, name string, dev interface{}) error {
@@ -60,7 +68,7 @@ func IntrRun() error {
 
 	// Block signals
 	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGHUP, syscall.SIGINT, syscall.Signal(INTR_IRQ_BASE))
+	signal.Notify(sigChan, signals...)
 	go func() {
 		for range sigChan {
 			// Handle signals if necessary
@@ -100,7 +108,7 @@ func IntrInit() error {
 func IntrThread() {
 	terminate := false
 	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGHUP, syscall.SIGINT, syscall.Signal(INTR_IRQ_BASE))
+	signal.Notify(sigChan, signals...)
 
 	util.Logger.Info("start...")
 	barrier.Done()
