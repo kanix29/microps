@@ -40,9 +40,9 @@ func main() {
 	}
 
 	// Initialize dummy device
-	dev, err := driver.DummyInit()
+	dev, err := driver.LoopbackInit()
 	if err != nil {
-		util.Logger.Error("DummyInit() failure", zap.Error(err))
+		util.Logger.Error("LoopbackInit() failure", zap.Error(err))
 		return
 	}
 
