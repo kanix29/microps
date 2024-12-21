@@ -55,7 +55,7 @@ func main() {
 	// Main loop
 	for !terminate {
 		util.Logger.Debug("Sending data")
-		if err := net.NetDeviceOutput(dev, 0x0800, consts.TestData, nil); err != nil {
+		if err := net.NetDeviceOutput(dev, net.NET_PROTOCOL_TYPE_IP, consts.TestData, nil); err != nil {
 			util.Logger.Error("NetDeviceOutput() failure", zap.Error(err))
 			break
 		}

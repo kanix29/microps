@@ -1,4 +1,4 @@
-APPS = step3
+APPS = step4
 
 # CFLAGS := $(CFLAGS) -g -W -Wall -Wno-unused-parameter -iquote .
 
