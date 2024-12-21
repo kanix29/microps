@@ -16,7 +16,9 @@ import (
 var terminate = false
 
 func onSignal(sig os.Signal) {
-	terminate = true
+	if sig == syscall.SIGINT {
+		terminate = true
+	}
 }
 
 func main() {

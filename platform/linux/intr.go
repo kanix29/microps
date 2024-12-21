@@ -67,7 +67,6 @@ func IntrRun() error {
 	}()
 
 	// Create and start the thread
-	tid = &sync.WaitGroup{}
 	tid.Add(1)
 	go func() {
 		defer tid.Done()
@@ -76,6 +75,7 @@ func IntrRun() error {
 
 	// Wait for the barrier
 	<-barrier
+
 	return nil
 }
 func IntrShutdown() {
@@ -92,6 +92,7 @@ func IntrInit() error {
 	sigmask[uint(syscall.SIGHUP)] = syscall.SIGHUP
 	return nil
 }
+
 func IntrThread() {
 	terminate := false
 	sigChan := make(chan os.Signal, 1)
@@ -107,6 +108,7 @@ func IntrThread() {
 		case syscall.SIGHUP, syscall.SIGINT:
 			terminate = true
 		default:
+			util.Logger.Debug("Checking IRQs")
 			for entry := irqs; entry != nil; entry = entry.Next {
 				util.Logger.Debug("Checking IRQ", zap.Uint("irq", entry.IRQ), zap.String("name", entry.Name), zap.Uint("signal", uint(sig.(syscall.Signal))))
 				if entry.IRQ == uint(sig.(syscall.Signal)) {
