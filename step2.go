@@ -8,7 +8,7 @@ import (
 
 	"github.com/kanix29/microps/consts"
 	"github.com/kanix29/microps/driver"
-	"github.com/kanix29/microps/service"
+	"github.com/kanix29/microps/net"
 	"github.com/kanix29/microps/util"
 	"go.uber.org/zap"
 )
@@ -34,7 +34,7 @@ func main() {
 	}()
 
 	// Initialize network
-	if err := service.NetInit(); err != nil {
+	if err := net.NetInit(); err != nil {
 		util.Logger.Error("NetInit() failure", zap.Error(err))
 		return
 	}
@@ -47,7 +47,7 @@ func main() {
 	}
 
 	// Run network
-	if err := service.NetRun(); err != nil {
+	if err := net.NetRun(); err != nil {
 		util.Logger.Error("NetRun() failure", zap.Error(err))
 		return
 	}
@@ -55,7 +55,7 @@ func main() {
 	// Main loop
 	for !terminate {
 		util.Logger.Debug("Sending data")
-		if err := service.NetDeviceOutput(dev, 0x0800, consts.TestData, nil); err != nil {
+		if err := net.NetDeviceOutput(dev, 0x0800, consts.TestData, nil); err != nil {
 			util.Logger.Error("NetDeviceOutput() failure", zap.Error(err))
 			break
 		}
@@ -63,5 +63,5 @@ func main() {
 	}
 
 	// Shutdown network
-	service.NetShutdown()
+	net.NetShutdown()
 }

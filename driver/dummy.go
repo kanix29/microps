@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/kanix29/microps/model"
+	"github.com/kanix29/microps/net"
 	platform "github.com/kanix29/microps/platform/linux"
-	"github.com/kanix29/microps/service"
 	"github.com/kanix29/microps/util"
 	"go.uber.org/zap"
 )
@@ -34,7 +34,7 @@ func DummyISR(irq uint, id interface{}) error {
 }
 
 func DummyInit() (*model.NetDevice, error) {
-	dev := service.NetDeviceAlloc()
+	dev := net.NetDeviceAlloc()
 	if dev == nil {
 		return nil, fmt.Errorf("net_device_alloc() failure")
 	}
@@ -43,7 +43,7 @@ func DummyInit() (*model.NetDevice, error) {
 	dev.Hlen = 0 // non header
 	dev.Alen = 0 // non address
 	dev.Ops = DummyOps
-	if err := service.NetDeviceRegister(dev); err != nil {
+	if err := net.NetDeviceRegister(dev); err != nil {
 		return nil, fmt.Errorf("net_device_register() failure")
 	}
 	if err := platform.IntrRequestIRQ(DUMMY_IRQ, DummyISR, platform.INTR_IRQ_SHARED, dev.Name, dev); err != nil {
