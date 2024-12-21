@@ -72,7 +72,7 @@ func LoopbackTransmit(dev *model.NetDevice, typ uint16, data []byte, dst interfa
 	util.QueuePush(&lo.queue, entry)
 	num := lo.queue.Num
 
-	util.Logger.Debug("LoopbackTransmit() queue pushed", zap.Uint("num", num), zap.String("dev", dev.Name), zap.Uint16("type", typ), zap.Int("len", len(data)))
+	util.Logger.Debug("LoopbackTransmit() queue pushed", zap.Uint("num", num), zap.String("dev", dev.Name), zap.String("type", fmt.Sprintf("0x%04x", typ)), zap.Int("len", len(data)))
 	util.HexDump(data)
 
 	platform.IntrRaiseIRQ(lo.irq)
@@ -102,7 +102,7 @@ func LoopbackISR(irq uint, id interface{}) error {
 		if !ok {
 			return fmt.Errorf("invalid queue entry type")
 		}
-		util.Logger.Debug("LoopbackISR() queue popped", zap.Uint("num", lo.queue.Num), zap.String("dev", dev.Name), zap.Uint16("type", entry.Type), zap.Int("len", entry.Len))
+		util.Logger.Debug("LoopbackISR() queue popped", zap.Uint("num", lo.queue.Num), zap.String("dev", dev.Name), zap.String("type", fmt.Sprintf("0x%04x", entry.Type)), zap.Int("len", entry.Len))
 		util.HexDump(entry.Data)
 
 		net.NetInputHandler(entry.Type, entry.Data, dev)
