@@ -10,6 +10,12 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	NET_PROTOCOL_TYPE_IP   = 0x0800
+	NET_PROTOCOL_TYPE_ARP  = 0x0806
+	NET_PROTOCOL_TYPE_IPV6 = 0x86dd
+)
+
 func NET_DEVICE_IS_UP(dev *model.NetDevice) bool {
 	return dev.Flags&model.NET_DEVICE_FLAG_UP != 0
 }
@@ -21,11 +27,26 @@ func NET_DEVICE_STATE(dev *model.NetDevice) string {
 	return "down"
 }
 
+type NetProtocol struct {
+	Next    *NetProtocol
+	Type    uint16
+	Queue   util.QueueHead // input queue
+	Handler func(data []byte, dev *model.NetDevice)
+}
+
+type NetProtocolQueueEntry struct {
+	Dev  *model.NetDevice
+	Len  int
+	Data []byte
+}
+
 // Global list of devices and mutex for thread safety.
 var (
-	devices     *model.NetDevice
-	deviceMutex sync.Mutex
-	deviceIndex uint
+	devices       *model.NetDevice
+	deviceMutex   sync.Mutex
+	deviceIndex   uint
+	protocols     *NetProtocol
+	protocolMutex sync.Mutex
 )
 
 // NetDeviceAlloc allocates a new NetDevice.
@@ -101,9 +122,52 @@ func NetDeviceOutput(dev *model.NetDevice, typ uint16, data []byte, dst interfac
 	return nil
 }
 
+func NetProtocolRegister(typ uint16, handler func(data []byte, dev *model.NetDevice)) error {
+	protocolMutex.Lock()
+	defer protocolMutex.Unlock()
+
+	for proto := protocols; proto != nil; proto = proto.Next {
+		if typ == proto.Type {
+			return fmt.Errorf("already registered, type=0x%04x", typ)
+		}
+	}
+
+	proto := &NetProtocol{
+		Type:    typ,
+		Handler: handler,
+		Next:    protocols,
+	}
+	protocols = proto
+
+	util.Logger.Info("NetProtocolRegister() registered", zap.String("type", fmt.Sprintf("0x%04x", typ)))
+	return nil
+}
+
 func NetInputHandler(typ uint16, data []byte, dev *model.NetDevice) error {
-	util.Logger.Debug("NetInputHandler", zap.String("dev", dev.Name), zap.String("type", fmt.Sprintf("0x%04x", typ)), zap.Int("len", len(data)))
-	util.HexDump(data)
+	var proto *NetProtocol
+
+	for proto = protocols; proto != nil; proto = proto.Next {
+		if proto.Type == typ {
+			entry := &NetProtocolQueueEntry{
+				Dev:  dev,
+				Len:  len(data),
+				Data: make([]byte, len(data)),
+			}
+			copy(entry.Data, data)
+			util.QueuePush(&proto.Queue, entry)
+
+			util.Logger.Debug("NetInputHandler() queue pushed",
+				zap.Uint("num", proto.Queue.Num),
+				zap.String("dev", dev.Name),
+				zap.String("type", fmt.Sprintf("0x%04x", typ)),
+				zap.Int("len", len(data)),
+			)
+			util.HexDump(data)
+			return nil
+		}
+	}
+	/* unsupported protocol */
+	util.Logger.Warn("NetInputHandler() unsupported protocol", zap.Uint16("type", typ))
 	return nil
 }
 
@@ -134,7 +198,10 @@ func NetShutdown() {
 
 func NetInit() error {
 	if err := platform.IntrInit(); err != nil {
-		return fmt.Errorf("intr_init() failure")
+		return fmt.Errorf("IntrInit() failure")
+	}
+	if err := IpInit(); err != nil {
+		return fmt.Errorf("IpInit() failure")
 	}
 	util.Logger.Info("NetInit: initialized")
 	return nil
