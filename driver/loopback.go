@@ -94,9 +94,13 @@ func LoopbackISR(irq uint, id interface{}) error {
 	defer lo.mutex.Unlock()
 
 	for {
-		entry := util.QueuePop(&lo.queue).(*LoopbackQueueEntry)
-		if entry == nil {
+		entryInterface := util.QueuePop(&lo.queue)
+		if entryInterface == nil {
 			break
+		}
+		entry, ok := entryInterface.(*LoopbackQueueEntry)
+		if !ok {
+			return fmt.Errorf("invalid queue entry type")
 		}
 		util.Logger.Debug("LoopbackISR() queue popped", zap.Uint("num", lo.queue.Num), zap.String("dev", dev.Name), zap.Uint16("type", entry.Type), zap.Int("len", entry.Len))
 		util.HexDump(entry.Data)
